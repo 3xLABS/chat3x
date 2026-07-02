@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CHAT3X
 
-## Getting Started
+Private, local-first chat marketing automation — a ManyChat-style engine that runs entirely on your machine. No cloud, no Meta app review, no data leaving your computer.
 
-First, run the development server:
+## Model
+
+`Trigger → Flow → Action` (same mental model as ManyChat):
+
+- **Triggers**: keyword (`is` / `begins with` / `contains`), new contact, default reply
+- **Flow nodes**: Message (+ quick replies), Condition (fields/tags), Action (tag/field), Smart Delay, User Input, AI Step (local Ollama), Start Flow
+- **Audience**: contacts with tags + custom fields, `{{name}}` / `{{field:key}}` interpolation
+- **Inbox**: live chat with human takeover; doubles as the local channel simulator
+
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
+npm test           # engine unit tests (vitest)
+npm run build      # production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Data lives in `data/chat3x.db` (SQLite, WAL). Delete the file to reset — seed flows and demo contacts are recreated on next boot.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Optional: local AI replies
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The AI Step node uses Ollama's OpenAI-compatible endpoint. Without Ollama the node falls back to its configured fallback text.
 
-## Learn More
+```bash
+ollama serve && ollama pull llama3.2
+# override via env: OLLAMA_BASE_URL, OLLAMA_MODEL
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `src/lib/engine/` — pure flow engine (no I/O, dependency-injected AI), fully unit-tested
+- `src/lib/runtime.ts` — impure layer: trigger matching, output persistence, delay scheduling
+- `src/lib/repo.ts` + `db.ts` — SQLite repository layer (better-sqlite3)
+- `src/app/api/` — local channel webhook (`/api/inbound`) + CRUD routes
+- `src/components/builder/` — React Flow visual builder
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Channel adapters (Telegram long-polling, Meta APIs) can plug into `handleInbound()` — the engine is channel-agnostic.

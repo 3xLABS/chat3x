@@ -1,0 +1,110 @@
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">CHAT3X Control Panel: Statistiken, Konversationen und Nachrichten-Simulator für die lokale Chat-Automation</h2>
+
+<div style="display:flex;align-items:center;gap:10px;margin:0 0 1rem;">
+  <span style="font-family:var(--font-mono);font-size:13px;font-weight:500;">CHAT3X</span>
+  <span id="cx-status" style="font-size:12px;color:var(--text-success);">● localhost:3000</span>
+  <button id="cx-refresh" style="margin-left:auto;font-size:13px;" aria-label="Aktualisieren"><i class="ti ti-refresh" aria-hidden="true"></i> Aktualisieren ↗</button>
+</div>
+
+<div id="cx-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin:0 0 1.5rem;"></div>
+
+<div style="background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px;padding:1rem 1.25rem;margin:0 0 1rem;">
+  <p style="font-size:13px;color:var(--text-secondary);margin:0 0 8px;">Nachricht als Kontakt senden</p>
+  <div style="display:flex;gap:8px;">
+    <select id="cx-contact" style="width:180px;"></select>
+    <input id="cx-text" placeholder='z. B. "prices" oder "start"' style="flex:1;" />
+    <button id="cx-send"><i class="ti ti-send" aria-hidden="true"></i> Senden</button>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <input id="cx-newname" placeholder="Neuer Kontakt: Name" style="width:180px;" />
+    <button id="cx-newcontact"><i class="ti ti-plus" aria-hidden="true"></i> Kontakt anlegen</button>
+    <button id="cx-flows" style="margin-left:auto;">Flows zeigen ↗</button>
+  </div>
+</div>
+
+<div id="cx-thread" style="display:none;background:var(--surface-1);border-radius:var(--radius);padding:12px;margin:0 0 1rem;"></div>
+
+<p style="font-size:13px;color:var(--text-secondary);margin:0 0 8px;">Inbox</p>
+<div id="cx-convs" style="border:0.5px solid var(--border);border-radius:var(--radius);"></div>
+
+<script>
+const DATA = __CHAT3X_DATA__;
+const API = "http://localhost:3000";
+const $ = (id) => document.getElementById(id);
+
+function esc(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML;}
+
+function renderStats(stats){
+  const items=[["Kontakte",stats.contacts],["Trigger aktiv",stats.triggers],["Konversationen",stats.conversations],["Nachrichten out",stats.messagesOut]];
+  $("cx-stats").innerHTML=items.map(([l,v])=>
+    `<div style="background:var(--surface-1);border-radius:var(--radius);padding:1rem;">
+      <p style="font-size:13px;color:var(--text-muted);margin:0;">${l}</p>
+      <p style="font-size:24px;font-weight:500;margin:4px 0 0;">${Math.round(v)}</p></div>`).join("");
+}
+
+function renderContacts(contacts){
+  $("cx-contact").innerHTML=contacts.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+}
+
+function renderConvs(convs){
+  $("cx-convs").innerHTML=convs.length?convs.map(c=>
+    `<div style="display:flex;gap:10px;align-items:baseline;padding:10px 14px;border-bottom:0.5px solid var(--border);">
+      <span style="font-size:14px;font-weight:500;white-space:nowrap;">${esc(c.contact?.name??"?")}</span>
+      <span style="font-size:12px;color:${c.status==="human"?"var(--text-warning)":"var(--text-success)"};">${c.status}</span>
+      <span style="font-size:13px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.lastMessage?.text??"")}</span>
+    </div>`).join("")
+    :`<p style="padding:12px 14px;font-size:13px;color:var(--text-muted);margin:0;">Keine Konversationen</p>`;
+}
+
+function renderAll(d){renderStats(d.stats);renderContacts(d.contacts);renderConvs(d.conversations);}
+renderAll(DATA);
+
+async function tryFetch(path,opts){
+  const res=await fetch(API+path,opts);
+  if(!res.ok)throw new Error(res.status);
+  return res.json();
+}
+
+async function reload(){
+  const [stats,contacts,conversations]=await Promise.all([
+    tryFetch("/api/stats"),tryFetch("/api/contacts"),tryFetch("/api/conversations")]);
+  renderAll({stats,contacts,conversations});
+}
+
+function showThread(messages){
+  $("cx-thread").style.display="block";
+  $("cx-thread").innerHTML=messages.map(m=>
+    `<p style="font-size:13px;margin:4px 0;"><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">${esc(m.sender)}</span> ${esc(m.text)}</p>`).join("");
+}
+
+$("cx-send").addEventListener("click",async()=>{
+  const contactId=$("cx-contact").value,text=$("cx-text").value.trim();
+  if(!text)return;
+  const name=$("cx-contact").selectedOptions[0]?.textContent??contactId;
+  try{
+    const r=await tryFetch("/api/inbound",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contactId,text})});
+    showThread(r.messages);$("cx-text").value="";await reload();
+  }catch{
+    sendPrompt(`Nutze den chat3x Skill: sende als Kontakt ${name} (${contactId}) die Nachricht "${text}", zeig mir die Bot-Antwort und rendere das Control Panel neu.`);
+  }
+});
+
+$("cx-newcontact").addEventListener("click",async()=>{
+  const name=$("cx-newname").value.trim();
+  if(!name)return;
+  try{
+    const r=await tryFetch("/api/inbound",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});
+    showThread(r.messages);$("cx-newname").value="";await reload();
+  }catch{
+    sendPrompt(`Nutze den chat3x Skill: lege den Kontakt "${name}" an (Welcome-Flow läuft automatisch) und rendere das Control Panel neu.`);
+  }
+});
+
+$("cx-refresh").addEventListener("click",async()=>{
+  try{await reload();}catch{sendPrompt("Nutze den chat3x Skill: rendere das Control Panel mit frischen Daten neu.");}
+});
+
+$("cx-flows").addEventListener("click",()=>{
+  sendPrompt("Nutze den chat3x Skill: liste alle Flows mit Triggern und Node-Anzahl auf.");
+});
+</script>

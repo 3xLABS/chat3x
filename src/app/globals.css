@@ -1,26 +1,56 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* CHAT3X design tokens — dark automation-console direction.
+   Node colors are semantic: each flow node type owns a hue. */
+@theme {
+  --color-bg: oklch(16% 0.012 260);
+  --color-surface: oklch(20% 0.014 260);
+  --color-surface-2: oklch(24% 0.016 260);
+  --color-line: oklch(32% 0.02 260);
+  --color-ink: oklch(94% 0.01 260);
+  --color-ink-dim: oklch(68% 0.02 260);
+  --color-ink-faint: oklch(50% 0.02 260);
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-accent: oklch(87% 0.21 130); /* circuit lime */
+  --color-accent-ink: oklch(20% 0.05 130);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-node-message: oklch(78% 0.12 220);
+  --color-node-condition: oklch(80% 0.14 85);
+  --color-node-action: oklch(72% 0.16 300);
+  --color-node-delay: oklch(70% 0.05 260);
+  --color-node-input: oklch(75% 0.15 350);
+  --color-node-ai: oklch(87% 0.21 130);
+  --color-node-flow: oklch(72% 0.14 255);
+
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Subtle grid atmosphere behind the whole console */
+.console-grid {
+  background-image:
+    linear-gradient(oklch(30% 0.02 260 / 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(30% 0.02 260 / 0.22) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* React Flow dark-theme variables */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-edge-stroke: oklch(45% 0.03 260);
+  --xy-edge-stroke-selected: oklch(87% 0.21 130);
+  --xy-handle-background-color: oklch(60% 0.05 260);
+  --xy-handle-border-color: oklch(16% 0.012 260);
+}
+.react-flow__attribution {
+  background: transparent;
+}
+.react-flow__attribution a {
+  color: var(--color-ink-faint);
 }
