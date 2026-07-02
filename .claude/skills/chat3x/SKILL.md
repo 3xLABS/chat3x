@@ -13,14 +13,14 @@ CHAT3X is a local ManyChat-style automation app in this repo. Everything runs on
 
 ## API quick reference
 
-Base URL `http://localhost:3000`. All bodies are JSON. CORS is open (see `src/proxy.ts`).
+Base URL `http://localhost:3000`. All bodies are JSON — always send `Content-Type: application/json`. Errors return non-2xx with `{"error":"..."}` (e.g. unknown contactId → 400). CORS is open (see `src/proxy.ts`).
 
 | Action | Call |
 |---|---|
 | Stats | `GET /api/stats` |
 | New contact (runs welcome flow) | `POST /api/inbound` `{"name":"Ada"}` |
-| Send message as contact | `POST /api/inbound` `{"contactId":"ct_x","text":"prices"}` → returns all messages created now (incl. bot replies) |
-| List contacts | `GET /api/contacts` |
+| Send message as contact | `POST /api/inbound` `{"contactId":"ct_x","text":"prices"}` → `{conversationId, messages[]}` — all messages created now, incl. synchronous bot replies; use `conversationId` to poll for delayed ones |
+| List contacts | `GET /api/contacts` → array of `{id, name, fields{}, tags[], createdAt}` |
 | List flows | `GET /api/flows` |
 | Create flow | `POST /api/flows` `{"name":"My Flow"}` |
 | Read/update/delete flow | `GET/PUT/DELETE /api/flows/{id}` — PUT accepts `{name, graph, triggers}` |
